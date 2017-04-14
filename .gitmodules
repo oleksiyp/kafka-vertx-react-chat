@@ -1,0 +1,3 @@
+[submodule "kafka-cluster"]
+	path = kafka-cluster
+	url = git@github.com:wurstmeister/kafka-docker.git
