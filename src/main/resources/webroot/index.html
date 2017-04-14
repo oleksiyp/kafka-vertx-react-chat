@@ -24,16 +24,15 @@ var reconnect = function() {
     sock = new SockJS('/chat');
     sock.onopen = function() {
       if (reconnectInterval != null) {
-         $("#messages").append("Reconnected</br>");
+         appendChatWindow("Reconnected");
          clearInterval(reconnectInterval);
       }
     };
     sock.onmessage = function(e) {
-      $("#messages").append(e.data + "</br>");
-      $("#messages").scrollTop($("#messages")[0].scrollHeight);
+        appendChatWindow(e.data);
     };
     sock.onclose = function() {
-        $("#messages").append("Disconnected</br>");
+        appendChatWindow("Disconnected");
         sock = null;
         if (reconnectInterval != null) {
             clearInterval(reconnectInterval);
@@ -48,6 +47,10 @@ function chatMessage() {
        sock.send($("#msg").val());
        $("#msg").val("");
     }
+}
+function appendChatWindow(message) {
+  $("#messages").append(message + "</br>");
+  $("#messages").scrollTop($("#messages")[0].scrollHeight);
 }
 $(document).ready(function() {
   $("#send").click(chatMessage);
