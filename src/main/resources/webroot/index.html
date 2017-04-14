@@ -1,0 +1,65 @@
+<html>
+<head>
+    <script src="http://cdn.jsdelivr.net/sockjs/0.3.4/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/jquery/3.2.1/jquery.min.js"></script>
+    <style>
+        * { padding: 0; margin: 0 }
+    </style>
+</head>
+<body>
+<div style="height:100%">
+    <div id="messages" style="height: 90%; overflow: scroll"></div>
+    <div>
+        <form>
+            <input id="msg" type="text" style="width:79%">
+            <button id="send" style="width:20%">Send</button>
+        </form>
+    </div>
+</div>
+
+<script>
+var sock = null;
+var reconnectInterval = null;
+var reconnect = function() {
+    sock = new SockJS('/chat');
+    sock.onopen = function() {
+      if (reconnectInterval != null) {
+         $("#messages").append("Reconnected</br>");
+         clearInterval(reconnectInterval);
+      }
+    };
+    sock.onmessage = function(e) {
+      $("#messages").append(e.data + "</br>");
+      $("#messages").scrollTop($("#messages")[0].scrollHeight);
+    };
+    sock.onclose = function() {
+        $("#messages").append("Disconnected</br>");
+        sock = null;
+        if (reconnectInterval != null) {
+            clearInterval(reconnectInterval);
+        }
+        reconnectInterval = setInterval(function() {
+            reconnect();
+        }, 2000);
+    };
+}
+function chatMessage() {
+    if (sock != null) {
+       sock.send($("#msg").val());
+       $("#msg").val("");
+    }
+}
+$(document).ready(function() {
+  $("#send").click(chatMessage);
+  $('#msg').on('keypress', function (e) {
+     if(e.which === 13){
+        chatMessage();
+        e.preventDefault();
+        return false;
+     }
+  });
+});
+reconnect();
+</script>
+</body>
+</html>
