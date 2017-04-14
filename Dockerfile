@@ -1,14 +1,16 @@
 # Extend vert.x image
-FROM vertx/vertx3
+FROM openjdk:8-jre-alpine
 
 ENV VERTICLE_NAME io.github.oleksiyp.ChatVerticle
-ENV VERTICLE_FILE target/vertx-kafka-chat-1.0-SNAPSHOT.jar
+ENV VERTICLE_FILE vertx-kafka-chat-1.0-SNAPSHOT-jar-with-dependencies.jar
 ENV VERTICLE_HOME /usr/verticles
 
 EXPOSE 8080
 
-COPY $VERTICLE_FILE $VERTICLE_HOME/
+# Copy your fat jar to the container
+COPY target/$VERTICLE_FILE $VERTICLE_HOME/
 
+# Launch the verticle
 WORKDIR $VERTICLE_HOME
 ENTRYPOINT ["sh", "-c"]
-CMD ["exec vertx run $VERTICLE_NAME -cp $VERTICLE_HOME/*"]
+CMD ["exec java -jar $VERTICLE_FILE"]
