@@ -1,11 +1,15 @@
 package io.github.oleksiyp;
 
 import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
+import io.vertx.core.impl.ConcurrentHashSet;
 import io.vertx.ext.web.Router;
+import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.StaticHandler;
 import io.vertx.ext.web.handler.sockjs.SockJSHandler;
+import io.vertx.ext.web.handler.sockjs.SockJSSocket;
 import io.vertx.kafka.client.consumer.KafkaConsumer;
 import io.vertx.kafka.client.producer.KafkaProducer;
 import io.vertx.kafka.client.producer.KafkaProducerRecord;
@@ -15,28 +19,23 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.function.Consumer;
 
-import static java.util.Collections.synchronizedSet;
-
 public class ChatVerticle extends AbstractVerticle {
+    public static final Logger LOGGER = LoggerFactory.getLogger(ChatVerticle.class);
     public static final String KAFKA = "localhost:32775";
     public static final String CHAT_TOPIC = "chat";
-    public static final Logger LOGGER = LoggerFactory.getLogger(ChatVerticle.class);
 
-    Consumer<String> kafkaChatTopic;
-    Set<Consumer<String>> webSockets = synchronizedSet(new HashSet<>());
+    private Consumer<String> broadcast;
+    private Set<Consumer<String>> webClients;
 
     @Override
     public void start() throws Exception {
-        startKafkaConsumer(KAFKA, CHAT_TOPIC, this::sendWebsockets);
+        webClients = new ConcurrentHashSet<>();
 
-        kafkaChatTopic = startKafkaProducer(KAFKA, CHAT_TOPIC);
+        startKafkaConsumer(KAFKA, CHAT_TOPIC, this::sendWebClients);
+
+        broadcast = startKafkaProducer(KAFKA, CHAT_TOPIC);
 
         startWeb();
-    }
-
-    private void sendWebsockets(String message) {
-        webSockets.forEach((webSocket) ->
-                webSocket.accept(message));
     }
 
     public void startWeb() {
@@ -44,23 +43,28 @@ public class ChatVerticle extends AbstractVerticle {
 
         Router router = Router.router(vertx);
         router.route("/").handler(StaticHandler.create());
-
-        startSocksJS(router);
+        router.route("/chat/*").handler(creatChatWebSocketHandler());
 
         server.requestHandler(router::accept)
                 .listen(8080);
     }
 
-    public void startSocksJS(Router router) {
-        router.route("/chat/*")
-                .handler(SockJSHandler.create(vertx)
-                        .socketHandler(socket -> {
-                            Consumer<String> consumer = socket::write;
-                            webSockets.add(consumer);
-                            socket.endHandler((s) -> webSockets.remove(consumer));
-                            socket.handler((buf) ->
-                                    kafkaChatTopic.accept(buf.toString()));
-                        }));
+    public Handler<RoutingContext> creatChatWebSocketHandler() {
+        return SockJSHandler.create(vertx)
+                .socketHandler(this::onNewSocket);
+    }
+
+    private void onNewSocket(SockJSSocket socket) {
+        Consumer<String> consumer = socket::write;
+        webClients.add(consumer);
+        socket.endHandler((s) -> webClients.remove(consumer));
+        socket.handler((buf) ->
+                broadcast.accept(buf.toString()));
+    }
+
+    private void sendWebClients(String message) {
+        webClients.forEach((client) ->
+                client.accept(message));
     }
 
     public Consumer<String> startKafkaProducer(String server, String topic) {
@@ -79,7 +83,7 @@ public class ChatVerticle extends AbstractVerticle {
             record = KafkaProducerRecord.create(topic, message);
             producer.write(record, (r) -> {
                 if (!r.succeeded()) {
-                    sendWebsockets("Failed to send: " + message);
+                    sendWebClients("Failed to send: " + message);
                     LOGGER.warn("Failed to send", r.cause());
                 }
             });
@@ -92,7 +96,7 @@ public class ChatVerticle extends AbstractVerticle {
         config.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
         config.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
         config.put("group.id", "chat");
-        config.put("auto.offset.reset", "earliest");
+        config.put("auto.offset.reset", "latest");
         config.put("enable.auto.commit", "false");
 
         // use consumer for interacting with Apache Kafka
