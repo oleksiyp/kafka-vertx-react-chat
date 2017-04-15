@@ -1,5 +1,6 @@
 How to start
 --------------
-# cd chat && mvn package
-# docker-compose up -d
-# open browser at localhost:8080
+
+1. cd chat && mvn package
+2. docker-compose up -d
+3. open browser at localhost:8080
