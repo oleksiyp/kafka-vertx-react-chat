@@ -11,8 +11,6 @@ services:
     environment:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_PORT: 9092
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
     links:
       - zookeeper
   chat:
