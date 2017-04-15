@@ -2,14 +2,15 @@ version: '2'
 services:
   zookeeper:
     build: 3party/zookeeper
-    ports:
-      - "2181:2181"
+    expose:
+      - 2181
   kafka:
     build: 3party/kafka
-    ports:
-      - "9092:9092"
+    expose:
+      - 9092
     environment:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_PORT: 9092
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     links:
@@ -19,6 +20,6 @@ services:
     environment:
       KAFKA: kafka:9092
     ports:
-      - "8080:8080"
+      - 8080:8080
     links:
       - kafka
