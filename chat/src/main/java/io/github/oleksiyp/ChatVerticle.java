@@ -21,7 +21,7 @@ import java.util.function.Consumer;
 
 public class ChatVerticle extends AbstractVerticle {
     public static final Logger LOGGER = LoggerFactory.getLogger(ChatVerticle.class);
-    public static final String KAFKA = "localhost:32775";
+    public static final String KAFKA_HOST_PORT = "localhost:9092";
     public static final String CHAT_TOPIC = "chat";
 
     private Consumer<String> broadcast;
@@ -29,11 +29,13 @@ public class ChatVerticle extends AbstractVerticle {
 
     @Override
     public void start() throws Exception {
+        String kafkaServer = System.getenv().getOrDefault("KAFKA", KAFKA_HOST_PORT);
+
         webClients = new ConcurrentHashSet<>();
 
-        startKafkaConsumer(KAFKA, CHAT_TOPIC, this::sendWebClients);
+        startKafkaConsumer(kafkaServer, CHAT_TOPIC, this::sendWebClients);
 
-        broadcast = startKafkaProducer(KAFKA, CHAT_TOPIC);
+        broadcast = startKafkaProducer(kafkaServer, CHAT_TOPIC);
 
         startWeb();
     }
