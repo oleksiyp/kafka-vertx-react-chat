@@ -44,8 +44,8 @@ public class ChatVerticle extends AbstractVerticle {
         HttpServer server = vertx.createHttpServer();
 
         Router router = Router.router(vertx);
-        router.route("/").handler(StaticHandler.create());
         router.route("/chat/*").handler(creatChatWebSocketHandler());
+        router.route("/*").handler(StaticHandler.create());
 
         server.requestHandler(router::accept)
                 .listen(8080);
